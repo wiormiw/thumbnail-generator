@@ -1,8 +1,9 @@
 import type { Result } from '@/core/shared/result';
 import type { BaseError } from '@/core/shared/errors';
 import type { ILogger, IThumbnailsRepository } from '@/core/ports';
-import type { DbOrTx, ThumbnailStatus } from '@/core/types';
-import { ok, err } from '@/core/shared/result';
+import type { DbOrTx } from '@/core/types';
+import type { ThumbnailStatus } from '@/core/types';
+import { fromPromise } from '@/core/shared/result';
 import { DatabaseError } from '@/core/shared/errors';
 import {
   thumbnails,
@@ -10,40 +11,6 @@ import {
   type NewThumbnail,
 } from '@/infrastructure/persistence/database/postgres/schemas';
 import { eq, and, isNull, desc } from 'drizzle-orm';
-
-// Drizzle DB interface for type-safe database operations
-type DrizzleDb = {
-  insert: (table: typeof thumbnails) => {
-    values: (data: NewThumbnail) => {
-      returning: () => Promise<[Thumbnail]>;
-    };
-  };
-  select: () => {
-    from: (table: typeof thumbnails) => {
-      where: (condition: unknown) => {
-        limit: (n: number) => Promise<Thumbnail[]>;
-        orderBy: (order: unknown) => Promise<Thumbnail[]>;
-      };
-    };
-  };
-  delete: (table: typeof thumbnails) => {
-    where: (condition: ReturnType<typeof eq>) => Promise<number>;
-  };
-  update: (table: typeof thumbnails) => {
-    set: (data: {
-      status?: ThumbnailStatus;
-      updatedAt: Date;
-      deletedAt?: Date;
-      thumbnailPath?: string | null;
-      errorMessage?: string | null;
-      retryCount?: number;
-    }) => {
-      where: (condition: ReturnType<typeof eq>) => {
-        returning: () => Promise<[Thumbnail?]>;
-      };
-    };
-  };
-};
 
 class ThumbnailsRepository implements IThumbnailsRepository {
   readonly name = 'ThumbnailsRepository';
@@ -56,70 +23,77 @@ class ThumbnailsRepository implements IThumbnailsRepository {
   async create(data: NewThumbnail, tx?: DbOrTx): Promise<Result<Thumbnail, BaseError>> {
     const db = tx ?? this.db();
 
-    try {
-      const [result] = await (db as unknown as DrizzleDb)
-        .insert(thumbnails)
-        .values(data)
-        .returning();
-
-      this.logger.info({ id: result.id }, 'Thumbnail created');
-
-      return ok(result);
-    } catch (error) {
-      this.logger.error({ error }, 'Failed to create thumbnail');
-      return err(new DatabaseError('Failed to create thumbnail', { error }));
-    }
+    return fromPromise(
+      async () => {
+        const results = await db.insert(thumbnails).values(data).returning();
+        const result = results[0];
+        if (!result) {
+          throw new DatabaseError('Failed to create thumbnail - no result returned');
+        }
+        this.logger.info({ id: result.id }, 'Thumbnail created');
+        return result;
+      },
+      (error) => {
+        this.logger.error({ error }, 'Failed to create thumbnail');
+        return new DatabaseError('Failed to create thumbnail', { error });
+      }
+    );
   }
 
   async findById(id: string, tx?: DbOrTx): Promise<Result<Thumbnail | null, BaseError>> {
     const db = tx ?? this.db();
 
-    try {
-      const result = await (db as unknown as DrizzleDb)
-        .select()
-        .from(thumbnails)
-        .where(and(eq(thumbnails.id, id), isNull(thumbnails.deletedAt)))
-        .limit(1);
-
-      return ok(result[0] !== undefined ? result[0] : null);
-    } catch (error) {
-      this.logger.error({ id, error }, 'Failed to find thumbnail by id');
-      return err(new DatabaseError('Failed to find thumbnail', { error }));
-    }
+    return fromPromise(
+      async () => {
+        const result = await db
+          .select()
+          .from(thumbnails)
+          .where(and(eq(thumbnails.id, id), isNull(thumbnails.deletedAt)))
+          .limit(1);
+        return result[0] !== undefined ? result[0] : null;
+      },
+      (error) => {
+        this.logger.error({ id, error }, 'Failed to find thumbnail by id');
+        return new DatabaseError('Failed to find thumbnail', { error });
+      }
+    );
   }
 
   async findByJobId(jobId: string, tx?: DbOrTx): Promise<Result<Thumbnail | null, BaseError>> {
     const db = tx ?? this.db();
 
-    try {
-      const result = await (db as unknown as DrizzleDb)
-        .select()
-        .from(thumbnails)
-        .where(and(eq(thumbnails.jobId, jobId), isNull(thumbnails.deletedAt)))
-        .limit(1);
-
-      return ok(result[0] !== undefined ? result[0] : null);
-    } catch (error) {
-      this.logger.error({ jobId, error }, 'Failed to find thumbnail by job id');
-      return err(new DatabaseError('Failed to find thumbnail by job id', { error }));
-    }
+    return fromPromise(
+      async () => {
+        const result = await db
+          .select()
+          .from(thumbnails)
+          .where(and(eq(thumbnails.jobId, jobId), isNull(thumbnails.deletedAt)))
+          .limit(1);
+        return result[0] !== undefined ? result[0] : null;
+      },
+      (error) => {
+        this.logger.error({ jobId, error }, 'Failed to find thumbnail by job id');
+        return new DatabaseError('Failed to find thumbnail', { error });
+      }
+    );
   }
 
   async findAll(tx?: DbOrTx): Promise<Result<Thumbnail[], BaseError>> {
     const db = tx ?? this.db();
 
-    try {
-      const results = await (db as unknown as DrizzleDb)
-        .select()
-        .from(thumbnails)
-        .where(isNull(thumbnails.deletedAt))
-        .orderBy(desc(thumbnails.createdAt));
-
-      return ok(results);
-    } catch (error) {
-      this.logger.error({ error }, 'Failed to list thumbnails');
-      return err(new DatabaseError('Failed to list thumbnails', { error }));
-    }
+    return fromPromise(
+      async () => {
+        return db
+          .select()
+          .from(thumbnails)
+          .where(isNull(thumbnails.deletedAt))
+          .orderBy(desc(thumbnails.createdAt));
+      },
+      (error) => {
+        this.logger.error({ error }, 'Failed to list thumbnails');
+        return new DatabaseError('Failed to list thumbnails', { error });
+      }
+    );
   }
 
   async findByStatus(
@@ -128,18 +102,19 @@ class ThumbnailsRepository implements IThumbnailsRepository {
   ): Promise<Result<Thumbnail[], BaseError>> {
     const db = tx ?? this.db();
 
-    try {
-      const results = await (db as unknown as DrizzleDb)
-        .select()
-        .from(thumbnails)
-        .where(and(eq(thumbnails.status, status), isNull(thumbnails.deletedAt)))
-        .orderBy(desc(thumbnails.createdAt));
-
-      return ok(results);
-    } catch (error) {
-      this.logger.error({ status, error }, 'Failed to find thumbnails by status');
-      return err(new DatabaseError('Failed to find thumbnails by status', { error }));
-    }
+    return fromPromise(
+      async () => {
+        return db
+          .select()
+          .from(thumbnails)
+          .where(and(eq(thumbnails.status, status), isNull(thumbnails.deletedAt)))
+          .orderBy(desc(thumbnails.createdAt));
+      },
+      (error) => {
+        this.logger.error({ status, error }, 'Failed to find thumbnails by status');
+        return new DatabaseError('Failed to find thumbnails', { error });
+      }
+    );
   }
 
   async updateStatus(
@@ -150,77 +125,82 @@ class ThumbnailsRepository implements IThumbnailsRepository {
   ): Promise<Result<Thumbnail, BaseError>> {
     const db = tx ?? this.db();
 
-    try {
-      const now = new Date();
-      const updateData: {
-        status: ThumbnailStatus;
-        updatedAt: Date;
-        deletedAt?: Date;
-        thumbnailPath?: string | null;
-        errorMessage?: string | null;
-        retryCount?: number;
-      } = {
-        status,
-        updatedAt: now,
-      };
+    return fromPromise(
+      async () => {
+        const now = new Date();
+        const updateData: {
+          status: ThumbnailStatus;
+          updatedAt: Date;
+          thumbnailPath?: string | null;
+          errorMessage?: string | null;
+          retryCount?: number;
+        } = {
+          status,
+          updatedAt: now,
+        };
 
-      if (updates !== undefined) {
-        if (updates.thumbnailPath !== undefined) updateData.thumbnailPath = updates.thumbnailPath;
-        if (updates.errorMessage !== undefined) updateData.errorMessage = updates.errorMessage;
-        if (updates.retryCount !== undefined) updateData.retryCount = updates.retryCount;
+        if (updates !== undefined) {
+          if (updates.thumbnailPath !== undefined) updateData.thumbnailPath = updates.thumbnailPath;
+          if (updates.errorMessage !== undefined) updateData.errorMessage = updates.errorMessage;
+          if (updates.retryCount !== undefined) updateData.retryCount = updates.retryCount;
+        }
+
+        const results = await db
+          .update(thumbnails)
+          .set(updateData)
+          .where(eq(thumbnails.id, id))
+          .returning();
+
+        const result = results[0];
+        if (!result) {
+          throw new DatabaseError(`Thumbnail not found: ${id}`);
+        }
+
+        this.logger.info({ id, status }, 'Thumbnail status updated');
+        return result;
+      },
+      (error) => {
+        this.logger.error({ id, status, error }, 'Failed to update thumbnail status');
+        return new DatabaseError('Failed to update thumbnail status', { error });
       }
-
-      const [result] = await (db as unknown as DrizzleDb)
-        .update(thumbnails)
-        .set(updateData)
-        .where(eq(thumbnails.id, id))
-        .returning();
-
-      if (!result) {
-        return err(new DatabaseError(`Thumbnail not found: ${id}`));
-      }
-
-      this.logger.info({ id, status }, 'Thumbnail status updated');
-
-      return ok(result);
-    } catch (error) {
-      this.logger.error({ id, status, error }, 'Failed to update thumbnail status');
-      return err(new DatabaseError('Failed to update thumbnail status', { error }));
-    }
+    );
   }
 
   async delete(id: string, tx?: DbOrTx): Promise<Result<void, BaseError>> {
     const db = tx ?? this.db();
 
-    try {
-      await (db as unknown as DrizzleDb).delete(thumbnails).where(eq(thumbnails.id, id));
-
-      this.logger.info({ id }, 'Thumbnail deleted');
-
-      return ok(undefined);
-    } catch (error) {
-      this.logger.error({ id, error }, 'Failed to delete thumbnail');
-      return err(new DatabaseError('Failed to delete thumbnail', { error }));
-    }
+    return fromPromise(
+      async () => {
+        await db.delete(thumbnails).where(eq(thumbnails.id, id));
+        this.logger.info({ id }, 'Thumbnail deleted');
+      },
+      (error) => {
+        this.logger.error({ id, error }, 'Failed to delete thumbnail');
+        return new DatabaseError('Failed to delete thumbnail', { error });
+      }
+    );
   }
 
-  async softDelete(id: string, tx?: DbOrTx): Promise<Result<void, BaseError>> {
+  async softDelete(id: string, tx?: DbOrTx): Promise<Result<boolean, BaseError>> {
     const db = tx ?? this.db();
 
-    try {
-      const now = new Date();
-      await (db as unknown as DrizzleDb)
-        .update(thumbnails)
-        .set({ deletedAt: now, updatedAt: now })
-        .where(eq(thumbnails.id, id));
-
-      this.logger.info({ id }, 'Thumbnail soft deleted');
-
-      return ok(undefined);
-    } catch (error) {
-      this.logger.error({ id, error }, 'Failed to soft delete thumbnail');
-      return err(new DatabaseError('Failed to soft delete thumbnail', { error }));
-    }
+    return fromPromise(
+      async () => {
+        const now = new Date();
+        const result = await db
+          .update(thumbnails)
+          .set({ deletedAt: now, updatedAt: now })
+          .where(eq(thumbnails.id, id))
+          .returning({ id: thumbnails.id });
+        const deleted = result.length > 0;
+        this.logger.info({ id, deleted }, 'Thumbnail soft deleted');
+        return deleted;
+      },
+      (error) => {
+        this.logger.error({ id, error }, 'Failed to soft delete thumbnail');
+        return new DatabaseError('Failed to soft delete thumbnail', { error });
+      }
+    );
   }
 }
 
