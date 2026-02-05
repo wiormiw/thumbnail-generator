@@ -1,5 +1,7 @@
 import type { ITransactionManager, ILogger } from '@/core/ports';
 import type { DrizzleDb, DbOrTx } from '@/core/types';
+import type { Result } from '@/core/shared/result';
+import type { BaseError } from '@/core/shared/errors';
 import { DatabaseError } from '@/core/shared/errors';
 
 class TransactionManager implements ITransactionManager {
@@ -9,10 +11,8 @@ class TransactionManager implements ITransactionManager {
   ) {}
 
   async runInTransaction<T>(
-    callback: (
-      db: DbOrTx
-    ) => Promise<import('@/core/shared/result').Result<T, import('@/core/shared/errors').BaseError>>
-  ): Promise<import('@/core/shared/result').Result<T, import('@/core/shared/errors').BaseError>> {
+    callback: (db: DbOrTx) => Promise<Result<T, BaseError>>
+  ): Promise<Result<T, BaseError>> {
     const db = this.db();
 
     try {
