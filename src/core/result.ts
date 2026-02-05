@@ -1,7 +1,7 @@
 /**
  * Result Pattern, You probably already know it :)
  */
-import type { BaseError } from '@/core/errors/BaseError';
+import type { BaseError } from './errors/BaseError';
 
 type Result<T, E extends BaseError = BaseError> = Ok<T, E> | Err<T, E>;
 
