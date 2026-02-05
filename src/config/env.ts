@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { EnvValidationError } from '@/core/errors';
 
 const EnvSchema = z.object({
   // Application environment
@@ -26,8 +27,8 @@ const EnvSchema = z.object({
 
   // Storage configuration
   STORAGE_ENDPOINT: z.string().default('http://localhost:9000'),
-  STORAGE_ACCESS_KEY: z.string().default('minioadmin'),
-  STORAGE_SECRET_KEY: z.string().default('minioadmin'),
+  STORAGE_ACCESS_KEY_ID: z.string().default('minioadmin'),
+  STORAGE_SECRET_ACCESS_KEY: z.string().default('minioadmin'),
   STORAGE_BUCKET_NAME: z.string().default('bucket'),
 });
 
@@ -36,8 +37,9 @@ type Env = z.infer<typeof EnvSchema>;
 const parsedEnv = EnvSchema.safeParse(process.env);
 
 if (!parsedEnv.success) {
-  console.error('Invalid environment variables:', z.treeifyError(parsedEnv.error));
-  throw new Error('Invalid environment variables');
+  throw new EnvValidationError('Invalid environment variables', {
+    errors: z.treeifyError(parsedEnv.error),
+  });
 }
 
 const env: Env = parsedEnv.data;
