@@ -5,10 +5,15 @@ import type { BaseError } from './errors/BaseError';
 
 type Result<T, E extends BaseError = BaseError> = Ok<T, E> | Err<T, E>;
 
+// Use declare fields to ensure consistent hidden class shape
 class Ok<T, E extends BaseError> {
-  readonly _tag = 'Ok' as const;
+  declare readonly _tag: 'Ok';
+  declare readonly value: T;
 
-  constructor(readonly value: T) {}
+  constructor(value: T) {
+    this._tag = 'Ok';
+    this.value = value;
+  }
 
   isOk(): this is Ok<T, E> {
     return true;
@@ -40,9 +45,13 @@ class Ok<T, E extends BaseError> {
 }
 
 class Err<T, E extends BaseError> {
-  readonly _tag = 'Err' as const;
+  declare readonly _tag: 'Err';
+  declare readonly error: E;
 
-  constructor(readonly error: E) {}
+  constructor(error: E) {
+    this._tag = 'Err';
+    this.error = error;
+  }
 
   isOk(): this is Ok<T, E> {
     return false;
