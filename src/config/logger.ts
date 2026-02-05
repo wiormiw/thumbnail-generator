@@ -94,6 +94,12 @@ function createModuleLogger(module: string): Logger {
   return withContext<ModuleContext>({ module });
 }
 
-export { getLogger, initLogger, closeLogger, withContext, createModuleLogger };
-
-export type { Logger, LogLevel };
+export {
+  getLogger,
+  initLogger,
+  closeLogger,
+  withContext,
+  createModuleLogger,
+  type Logger,
+  type LogLevel,
+};
