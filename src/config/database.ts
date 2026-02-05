@@ -1,7 +1,7 @@
 import { SQL } from 'bun';
 import { env } from './env';
 import { createModuleLogger } from './logger';
-import { DatabaseError } from '@/core/errors';
+import { DatabaseError } from '@/core/shared/errors';
 
 const logger = createModuleLogger('Database');
 

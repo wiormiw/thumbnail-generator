@@ -1,7 +1,7 @@
 import { RedisClient } from 'bun';
 import { env } from './env';
 import { createModuleLogger } from './logger';
-import { CacheError } from '@/core/errors';
+import { CacheError } from '@/core/shared/errors';
 
 const logger = createModuleLogger('Cache');
 

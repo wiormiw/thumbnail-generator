@@ -1,7 +1,7 @@
 import { S3Client } from 'bun';
 import { env } from './env';
 import { createModuleLogger } from './logger';
-import { StorageError } from '@/core/errors';
+import { StorageError } from '@/core/shared/errors';
 
 const logger = createModuleLogger('Storage');
 

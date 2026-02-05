@@ -1,6 +1,6 @@
 import pino, { type Logger, type LoggerOptions } from 'pino';
 import { env, isDevelopment, isTest } from './env';
-import { BaseError, LoggerError } from '@/core/errors';
+import { BaseError, LoggerError } from '@/core/shared/errors';
 
 let logger: Logger | null = null;
 

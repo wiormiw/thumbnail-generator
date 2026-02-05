@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { EnvValidationError } from '@/core/errors';
+import { EnvValidationError } from '@/core/shared/errors';
 
 const EnvSchema = z.object({
   // Application environment
