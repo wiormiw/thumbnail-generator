@@ -1,10 +1,10 @@
 import type { ITransactionManager, ILogger } from '@/core/ports';
-import type { DbOrTx } from '@/core/types';
+import type { DrizzleDb, DbOrTx } from '@/core/types';
 import { DatabaseError } from '@/core/shared/errors';
 
 class TransactionManager implements ITransactionManager {
   constructor(
-    private readonly db: () => DbOrTx,
+    private readonly db: () => DrizzleDb,
     private readonly logger: ILogger
   ) {}
 
@@ -16,20 +16,14 @@ class TransactionManager implements ITransactionManager {
     const db = this.db();
 
     try {
-      const result = await (db as DbOrTx & {
-        transaction: <R>(callback: (tx: DbOrTx) => Promise<R>) => Promise<R>;
-      }).transaction(async (tx: DbOrTx) => {
+      // Use Drizzle's built-in transaction
+      const result = await db.transaction(async (tx) => {
         return callback(tx);
       });
 
       return result;
     } catch (error) {
-      if (error instanceof DatabaseError) {
-        this.logger.error({ error }, 'Transaction failed');
-        throw error;
-      }
-
-      this.logger.error({ error }, 'Unexpected transaction error');
+      this.logger.error({ error }, 'Transaction failed');
       throw new DatabaseError('Transaction failed', { originalError: error });
     }
   }
