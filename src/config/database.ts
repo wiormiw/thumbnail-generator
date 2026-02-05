@@ -3,7 +3,7 @@ import { drizzle } from 'drizzle-orm/bun-sql';
 import { env } from './env';
 import { createModuleLogger } from './logger';
 import { DatabaseError } from '@/core/shared/errors';
-import * as schema from '@/infrastructure/persistence/database/postgres/schemas';
+import * as schema from '@/infrastructure/persistence/database/drizzle/postgres/schemas';
 import { sql } from 'drizzle-orm';
 import type { DrizzleDb } from '@/core/types';
 

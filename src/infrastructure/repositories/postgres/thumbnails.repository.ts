@@ -9,7 +9,7 @@ import {
   thumbnails,
   type Thumbnail,
   type NewThumbnail,
-} from '@/infrastructure/persistence/database/postgres/schemas';
+} from '@/infrastructure/persistence/database/drizzle/postgres/schemas';
 import { eq, and, isNull, desc } from 'drizzle-orm';
 
 class ThumbnailsRepository implements IThumbnailsRepository {

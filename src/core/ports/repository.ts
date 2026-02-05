@@ -4,7 +4,7 @@ import type { DbOrTx, ThumbnailStatus } from '../types';
 import type {
   Thumbnail,
   NewThumbnail,
-} from '@/infrastructure/persistence/database/postgres/schemas';
+} from '@/infrastructure/persistence/database/drizzle/postgres/schemas';
 type TransactionResult<T> = Result<T, BaseError>;
 
 interface ITransactionManager {

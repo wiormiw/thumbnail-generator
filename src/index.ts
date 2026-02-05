@@ -14,14 +14,14 @@ import {
   getCacheClient,
   getDatabaseClient,
 } from './config';
-import { errorHandlerPlugin } from './infrastructure/presentation/http/plugins/error-handler.plugin';
-import { requestIdPlugin } from './infrastructure/presentation/http/plugins/request-id.plugin';
-import { routes } from './infrastructure/presentation/http/routes';
+import { errorHandlerPlugin } from '@/infrastructure/presentation/http/elysia/plugins/error-handler.plugin';
+import { requestIdPlugin } from '@/infrastructure/presentation/http/elysia/plugins/request-id.plugin';
+import { routes } from '@/infrastructure/presentation/http/elysia/routes';
 import { ThumbnailsUseCase } from '@/application/thumbnails';
-import { MinioRepository } from './infrastructure/repositories/minio/minio.repository';
-import { RedisRepository } from './infrastructure/repositories/redis/redis.repository';
-import { ThumbnailsRepository } from './infrastructure/repositories/postgres/thumbnails.repository';
-import { TransactionManager } from './infrastructure/persistence/database/postgres/transaction-manager';
+import { MinioRepository } from '@/infrastructure/repositories/minio/minio.repository';
+import { RedisRepository } from '@/infrastructure/repositories/redis/redis.repository';
+import { ThumbnailsRepository } from '@/infrastructure/repositories/postgres/thumbnails.repository';
+import { TransactionManager } from '@/infrastructure/persistence/database/drizzle/transaction-manager';
 
 interface DIContainer {
   getThumbnailsUseCase(): ThumbnailsUseCase;
