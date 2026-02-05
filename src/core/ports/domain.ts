@@ -21,7 +21,7 @@ interface IThumbnailsRepository {
     db?: DbOrTx
   ): Promise<Result<Thumbnail, BaseError>>;
   delete(id: string, db?: DbOrTx): Promise<Result<void, BaseError>>;
-  softDelete(id: string, db?: DbOrTx): Promise<Result<void, BaseError>>;
+  softDelete(id: string, db?: DbOrTx): Promise<Result<boolean, BaseError>>;
 }
 
 export type { IThumbnailsRepository };
