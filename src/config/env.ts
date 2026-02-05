@@ -1,5 +1,8 @@
-import { z } from 'zod';
+import { z, preprocess } from 'zod';
+import { toBoolean } from '@/core/shared/utils';
 import { EnvValidationError } from '@/core/shared/errors';
+
+const booleanPreprocess = preprocess(toBoolean, z.boolean());
 
 const EnvSchema = z.object({
   // Application environment
@@ -12,18 +15,18 @@ const EnvSchema = z.object({
   DATABASE_MAX_CONNECTIONS: z.coerce.number().default(20),
   DATABASE_IDLE_TIMEOUT: z.coerce.number().default(30), // in seconds
   DATABASE_MAX_LIFETIME: z.coerce.number().default(0), // in seconds, 0 means unlimited
-  DATABASE_CONNECT_TIMEOUT: z.coerce.number().default(30), // in seconds
-  DATABASE_SSL: z.coerce.boolean().default(false),
+  DATABASE_CONNECTION_TIMEOUT: z.coerce.number().default(30), // in seconds
+  DATABASE_SSL: booleanPreprocess.default(false),
 
   // Cache configuration
   CACHE_URL: z.url().default('redis://localhost:6379'),
   CACHE_CONNECTION_TIMEOUT: z.coerce.number().default(10000), // in milliseconds,
   CACHE_IDLE_TIMEOUT: z.coerce.number().default(30000), // in milliseconds
-  CACHE_AUTO_RECONNECT: z.coerce.boolean().default(true),
+  CACHE_AUTO_RECONNECT: booleanPreprocess.default(true),
   CACHE_MAX_RETRIES: z.coerce.number().default(10),
-  CACHE_ENABLE_OFFLINE_QUEUE: z.coerce.boolean().default(true),
-  CACHE_ENABLE_AUTO_PIPELINING: z.coerce.boolean().default(true),
-  CACHE_SSL: z.coerce.boolean().default(false),
+  CACHE_ENABLE_OFFLINE_QUEUE: booleanPreprocess.default(true),
+  CACHE_ENABLE_AUTO_PIPELINING: booleanPreprocess.default(true),
+  CACHE_SSL: booleanPreprocess.default(false),
 
   // Storage configuration
   STORAGE_ENDPOINT: z.string().default('http://localhost:9000'),

@@ -21,15 +21,16 @@ const initStorageClient = async () => {
     endpoint: env.STORAGE_ENDPOINT,
     accessKeyId: env.STORAGE_ACCESS_KEY_ID,
     secretAccessKey: env.STORAGE_SECRET_ACCESS_KEY,
+    bucket: env.STORAGE_BUCKET_NAME,
   });
 
   try {
     await storageClient.file('test-connection').exists();
-    logger.info({ endpoint: env.STORAGE_ENDPOINT }, 'Storage connected');
+    logger.info('Storage connected');
   } catch (error) {
     logger.error({ error }, 'Storage connection failed');
     storageClient = null;
-    throw error;
+    throw new StorageError('Failed to connect to storage', { error });
   }
 };
 

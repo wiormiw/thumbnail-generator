@@ -1,44 +1,56 @@
 import { SQL } from 'bun';
+import { drizzle } from 'drizzle-orm/bun-sql';
 import { env } from './env';
 import { createModuleLogger } from './logger';
 import { DatabaseError } from '@/core/shared/errors';
+import * as schema from '@/infrastructure/persistence/database/postgres/schemas';
+import { sql } from 'drizzle-orm';
+import type { DrizzleDb } from '@/core/types';
 
 const logger = createModuleLogger('Database');
 
-let dbClient: SQL | null = null;
+let drizzleDb: DrizzleDb | null = null;
+let sqlClient: SQL | null = null;
 
-function getDatabaseClient(): SQL {
-  if (!dbClient) {
+function getDatabaseClient(): DrizzleDb {
+  if (!drizzleDb) {
     throw new DatabaseError('Database client has not been initialized');
   }
-  return dbClient;
+  return drizzleDb;
 }
 
 const initDatabaseClient = async () => {
-  if (dbClient) return; // Idempotent check
+  if (drizzleDb) return;
 
-  dbClient = new SQL({
+  sqlClient = new SQL({
     url: env.DATABASE_URL,
     max: env.DATABASE_MAX_CONNECTIONS,
     idleTimeout: env.DATABASE_IDLE_TIMEOUT,
     maxLifetime: env.DATABASE_MAX_LIFETIME,
-    connectTimeout: env.DATABASE_CONNECT_TIMEOUT,
+    connectionTimeout: env.DATABASE_CONNECTION_TIMEOUT,
     ssl: env.DATABASE_SSL,
-    onconnect: (client) => {
-      logger.info({ client }, 'Database connected');
-    },
-    onclose: (client) => {
-      logger.info({ client }, 'Database connection closed');
-    },
   });
 
-  await dbClient.connect();
+  drizzleDb = drizzle(sqlClient, {
+    schema,
+    logger: env.NODE_ENV === 'development',
+  });
+
+  try {
+    await drizzleDb.execute(sql`SELECT 1`);
+    logger.info('Drizzle ORM initialized');
+  } catch (error) {
+    logger.error({ error }, 'Database connection test failed');
+    throw new DatabaseError('Failed to connect to database', { error });
+  }
 };
 
 const closeDatabaseClient = async () => {
-  if (dbClient) {
-    await dbClient.close();
-    dbClient = null;
+  if (sqlClient) {
+    await sqlClient.close();
+    sqlClient = null;
+    drizzleDb = null;
+    logger.info('Database connection closed');
   }
 };
 

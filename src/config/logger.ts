@@ -1,6 +1,6 @@
 import pino, { type Logger, type LoggerOptions } from 'pino';
 import { env, isDevelopment, isTest } from './env';
-import { BaseError, LoggerError } from '@/core/shared/errors';
+import { BaseError } from '@/core/shared/errors';
 
 let logger: Logger | null = null;
 
@@ -55,7 +55,7 @@ function getProductionConfig(): LoggerOptions {
 
 function getLogger(): Logger {
   if (!logger) {
-    throw new LoggerError('Logger has not been initialized');
+    return initLogger(); // Auto-initialize if not yet initialized
   }
   return logger;
 }
