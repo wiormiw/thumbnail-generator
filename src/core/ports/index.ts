@@ -3,4 +3,3 @@
 
 export * from './infrastructure';
 export * from './repository';
-export * from './domain';
