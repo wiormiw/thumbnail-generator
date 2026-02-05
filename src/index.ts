@@ -4,18 +4,17 @@ import {
   initLogger,
   getLogger,
   initDatabaseClient,
-  getDatabaseClient,
   closeDatabaseClient,
   initCacheClient,
-  getCacheClient,
   closeCacheClient,
   initStorageClient,
-  getStorageClient,
   closeStorageClient,
   closeLogger,
+  getStorageClient,
+  getCacheClient,
+  getDatabaseClient,
 } from './config';
 import { errorHandlerPlugin } from './infrastructure/presentation/http/plugins/error-handler.plugin';
-import { resultHandlerPlugin } from './infrastructure/presentation/http/plugins/result-handler.plugin';
 import { requestIdPlugin } from './infrastructure/presentation/http/plugins/request-id.plugin';
 import { routes } from './infrastructure/presentation/http/routes';
 import { ThumbnailsUseCase } from '@/application/thumbnails';
@@ -126,7 +125,6 @@ async function initializeApp() {
       );
     })
     .use(errorHandlerPlugin)
-    .use(resultHandlerPlugin)
     .decorate('di', di)
     .use(routes);
 
@@ -138,6 +136,7 @@ async function gracefulShutdown(signal: string) {
   logger.info({ signal }, 'Received shutdown signal');
 
   try {
+    await app.stop();
     await closeDatabaseClient();
     closeCacheClient();
     closeStorageClient();
@@ -153,6 +152,9 @@ async function gracefulShutdown(signal: string) {
 const { app, logger } = await initializeApp();
 
 app.listen(env.PORT);
+app.on('stop', () => {
+  logger.info('App has been stopped');
+});
 
 logger.info(`Server running at http://localhost:${env.PORT}`);
 
