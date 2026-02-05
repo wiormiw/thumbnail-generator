@@ -2,11 +2,7 @@ import { ok, err, fromTry, type Result } from '@/core/shared/result';
 import { ValidationError, NotFoundError, BaseError } from '@/core/shared/errors';
 import type { ILogger } from '@/core/ports';
 import type { IThumbnailsRepository } from '@/core/ports';
-import type {
-  CreateThumbnailRequest,
-  ThumbnailResponse,
-  IThumbnailsUseCase,
-} from './dto';
+import type { CreateThumbnailRequest, ThumbnailResponse, IThumbnailsUseCase } from './dto';
 import type { ThumbnailStatus } from '@/core/types';
 
 class ThumbnailsUseCase implements IThumbnailsUseCase {
@@ -74,16 +70,7 @@ class ThumbnailsUseCase implements IThumbnailsUseCase {
       return result;
     }
 
-    const responses: ThumbnailResponse[] = [];
-
-    for (let i = 0; i < result.value.length; i++) {
-      const thumbnail = result.value[i];
-      if (thumbnail) {
-        responses.push(this.toResponse(thumbnail));
-      }
-    }
-
-    return ok(responses);
+    return ok(result.value.map((thumbnail) => this.toResponse(thumbnail)));
   }
 
   async deleteThumbnail(id: string): Promise<Result<void>> {
@@ -93,18 +80,13 @@ class ThumbnailsUseCase implements IThumbnailsUseCase {
       return err(new ValidationError('Invalid thumbnail ID'));
     }
 
-    const existsResult = await this.thumbnailsRepo.findById(id);
-    if (existsResult.isErr()) {
-      return err(existsResult.error);
-    }
-
-    if (!existsResult.value) {
-      return err(new NotFoundError(`Thumbnail not found: ${id}`));
-    }
-
     const deleteResult = await this.thumbnailsRepo.softDelete(id);
     if (deleteResult.isErr()) {
       return err(deleteResult.error);
+    }
+
+    if (!deleteResult.value) {
+      return err(new NotFoundError(`Thumbnail not found: ${id}`));
     }
 
     return ok(undefined);
