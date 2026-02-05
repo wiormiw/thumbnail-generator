@@ -1,7 +1,7 @@
 import js from '@eslint/js';
 import tseslint from 'typescript-eslint';
 
-export default tseslint.config(
+export default [
   {
     ignores: ['node_modules/**', 'dist/**', '*.js', 'build/**'],
   },
@@ -28,4 +28,4 @@ export default tseslint.config(
       'no-console': 'off',
     },
   }
-);
+];
