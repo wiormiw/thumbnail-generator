@@ -1,6 +1,7 @@
 import { SQL } from 'bun';
-import { env } from '@/config/env';
-import { createModuleLogger } from '@/config/logger';
+import { env } from './env';
+import { createModuleLogger } from './logger';
+import { DatabaseError } from '@/core/errors';
 
 const logger = createModuleLogger('Database');
 
@@ -8,7 +9,7 @@ let dbClient: SQL | null = null;
 
 function getDatabaseClient(): SQL {
   if (!dbClient) {
-    throw new Error('Database client has not been initialized.');
+    throw new DatabaseError('Database client has not been initialized');
   }
   return dbClient;
 }
