@@ -1,10 +1,10 @@
 import { BaseError } from './BaseError';
 
-class LoggerError extends BaseError {
+class StorageError extends BaseError {
   constructor(message: string, detail?: Record<string, unknown>, isOperational = true) {
     super(500, message, detail, isOperational);
-    this.name = 'LoggerError';
+    this.name = 'StorageError';
   }
 }
 
-export { LoggerError };
+export { StorageError };
