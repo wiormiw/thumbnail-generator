@@ -1,5 +1,9 @@
-import type { SQL, TransactionSQL } from 'bun';
+import { drizzle } from 'drizzle-orm/bun-sql';
+import * as schema from '@/infrastructure/persistence/database/postgres/schemas';
 
-export type DbOrTx = SQL | TransactionSQL;
+type DrizzleDb = ReturnType<typeof drizzle<typeof schema>>;
+type DrizzleTx = Parameters<Parameters<DrizzleDb['transaction']>[0]>[0];
+type DbOrTx = DrizzleDb | DrizzleTx;
+export type { DrizzleDb, DrizzleTx, DbOrTx };
 
 export * from './enums';
