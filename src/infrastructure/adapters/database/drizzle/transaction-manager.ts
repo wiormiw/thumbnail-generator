@@ -1,8 +1,9 @@
 import type { ITransactionManager, ILogger } from '@/core/ports';
-import type { DrizzleDb, DbOrTx } from '@/core/types';
+import type { DrizzleDb } from './types';
 import type { Result } from '@/core/shared/result';
 import type { BaseError } from '@/core/shared/errors';
 import { DatabaseError } from '@/core/shared/errors';
+import type { DbOrTx } from '@/infrastructure/adapters/database/types';
 
 class TransactionManager implements ITransactionManager {
   constructor(

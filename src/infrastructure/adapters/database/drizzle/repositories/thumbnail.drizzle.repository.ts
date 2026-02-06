@@ -1,19 +1,20 @@
 import type { Result } from '@/core/shared/result';
 import type { BaseError } from '@/core/shared/errors';
 import type { ILogger, IThumbnailsRepository } from '@/core/ports';
-import type { DbOrTx } from '@/core/types';
+import type { DbOrTx } from '@/infrastructure/adapters/database/types';
+import type { Thumbnail, NewThumbnail, ThumbnailStatusUpdate } from '@/core/domain';
 import type { ThumbnailStatus } from '@/core/types';
 import { fromPromise } from '@/core/shared/result';
 import { DatabaseError } from '@/core/shared/errors';
 import {
   thumbnails,
-  type Thumbnail,
-  type NewThumbnail,
-} from '@/infrastructure/persistence/database/drizzle/postgres/schemas';
+  type Thumbnail as DrizzleThumbnail,
+  type NewThumbnail as DrizzleNewThumbnail,
+} from '@/infrastructure/adapters/database/drizzle/postgres/schemas';
 import { eq, and, isNull, desc } from 'drizzle-orm';
 
-class ThumbnailsRepository implements IThumbnailsRepository {
-  readonly name = 'ThumbnailsRepository';
+class ThumbnailDrizzleRepository implements IThumbnailsRepository {
+  readonly name = 'ThumbnailDrizzleRepository';
 
   constructor(
     private readonly db: () => DbOrTx,
@@ -25,13 +26,20 @@ class ThumbnailsRepository implements IThumbnailsRepository {
 
     return fromPromise(
       async () => {
-        const results = await db.insert(thumbnails).values(data).returning();
+        const drizzleData: DrizzleNewThumbnail = {
+          url: data.url,
+          width: data.width ?? null,
+          height: data.height ?? null,
+          format: data.format ?? null,
+          status: 'pending',
+        };
+        const results = await db.insert(thumbnails).values(drizzleData).returning();
         const result = results[0];
         if (!result) {
           throw new DatabaseError('Failed to create thumbnail - no result returned');
         }
         this.logger.info({ id: result.id }, 'Thumbnail created');
-        return result;
+        return this.toDomain(result);
       },
       (error) => {
         this.logger.error({ error }, 'Failed to create thumbnail');
@@ -50,7 +58,7 @@ class ThumbnailsRepository implements IThumbnailsRepository {
           .from(thumbnails)
           .where(and(eq(thumbnails.id, id), isNull(thumbnails.deletedAt)))
           .limit(1);
-        return result[0] !== undefined ? result[0] : null;
+        return result[0] !== undefined ? this.toDomain(result[0]) : null;
       },
       (error) => {
         this.logger.error({ id, error }, 'Failed to find thumbnail by id');
@@ -69,7 +77,7 @@ class ThumbnailsRepository implements IThumbnailsRepository {
           .from(thumbnails)
           .where(and(eq(thumbnails.jobId, jobId), isNull(thumbnails.deletedAt)))
           .limit(1);
-        return result[0] !== undefined ? result[0] : null;
+        return result[0] !== undefined ? this.toDomain(result[0]) : null;
       },
       (error) => {
         this.logger.error({ jobId, error }, 'Failed to find thumbnail by job id');
@@ -83,11 +91,12 @@ class ThumbnailsRepository implements IThumbnailsRepository {
 
     return fromPromise(
       async () => {
-        return db
+        const results = await db
           .select()
           .from(thumbnails)
           .where(isNull(thumbnails.deletedAt))
           .orderBy(desc(thumbnails.createdAt));
+        return results.map((r) => this.toDomain(r));
       },
       (error) => {
         this.logger.error({ error }, 'Failed to list thumbnails');
@@ -104,11 +113,12 @@ class ThumbnailsRepository implements IThumbnailsRepository {
 
     return fromPromise(
       async () => {
-        return db
+        const results = await db
           .select()
           .from(thumbnails)
           .where(and(eq(thumbnails.status, status), isNull(thumbnails.deletedAt)))
           .orderBy(desc(thumbnails.createdAt));
+        return results.map((r) => this.toDomain(r));
       },
       (error) => {
         this.logger.error({ status, error }, 'Failed to find thumbnails by status');
@@ -120,7 +130,7 @@ class ThumbnailsRepository implements IThumbnailsRepository {
   async updateStatus(
     id: string,
     status: ThumbnailStatus,
-    updates?: Partial<Pick<Thumbnail, 'thumbnailPath' | 'errorMessage' | 'retryCount'>>,
+    updates?: ThumbnailStatusUpdate,
     tx?: DbOrTx
   ): Promise<Result<Thumbnail, BaseError>> {
     const db = tx ?? this.db();
@@ -157,7 +167,7 @@ class ThumbnailsRepository implements IThumbnailsRepository {
         }
 
         this.logger.info({ id, status }, 'Thumbnail status updated');
-        return result;
+        return this.toDomain(result);
       },
       (error) => {
         this.logger.error({ id, status, error }, 'Failed to update thumbnail status');
@@ -202,6 +212,26 @@ class ThumbnailsRepository implements IThumbnailsRepository {
       }
     );
   }
+
+  /** Map Drizzle model to domain entity */
+  private toDomain(model: DrizzleThumbnail): Thumbnail {
+    return {
+      id: model.id,
+      url: model.url,
+      originalPath: model.originalPath,
+      thumbnailPath: model.thumbnailPath,
+      width: model.width,
+      height: model.height,
+      format: model.format as Thumbnail['format'],
+      status: model.status as ThumbnailStatus,
+      errorMessage: model.errorMessage,
+      jobId: model.jobId,
+      retryCount: model.retryCount,
+      createdAt: model.createdAt,
+      updatedAt: model.updatedAt,
+      deletedAt: model.deletedAt,
+    };
+  }
 }
 
-export { ThumbnailsRepository };
+export { ThumbnailDrizzleRepository };
