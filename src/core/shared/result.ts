@@ -82,9 +82,7 @@ class Err<T, E extends BaseError> {
   }
 }
 
-// Constructors
 const ok = <T, E extends BaseError = BaseError>(value: T): Result<T, E> => new Ok(value);
-
 const err = <T, E extends BaseError = BaseError>(error: E): Result<T, E> => new Err(error);
 
 // Wrap synchronous function that might throw

@@ -38,7 +38,8 @@ interface IThumbnailsRepository {
   create(data: NewThumbnail, db?: DbOrTx): Promise<Result<Thumbnail, BaseError>>;
   findById(id: string, db?: DbOrTx): Promise<Result<Thumbnail | null, BaseError>>;
   findByJobId(jobId: string, db?: DbOrTx): Promise<Result<Thumbnail | null, BaseError>>;
-  findAll(db?: DbOrTx): Promise<Result<Thumbnail[], BaseError>>;
+  findAll(db?: DbOrTx, page?: number, pageSize?: number): Promise<Result<Thumbnail[], BaseError>>;
+  count(db?: DbOrTx): Promise<Result<number, BaseError>>;
   findByStatus(status: ThumbnailStatus, db?: DbOrTx): Promise<Result<Thumbnail[], BaseError>>;
   updateStatus(
     id: string,

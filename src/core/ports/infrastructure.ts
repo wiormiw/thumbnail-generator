@@ -1,4 +1,3 @@
-// Infrastructure abstractions
 interface ILogger {
   level: string;
   info(obj: unknown, msg?: string): void;
