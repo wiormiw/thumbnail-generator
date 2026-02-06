@@ -41,7 +41,7 @@ const healthRoutes = new OpenAPIHono<HonoEnv>();
 const healthCheckRoute = createRoute({
   method: 'get',
   path: '/health',
-  tags: ['health'],
+  tags: ['Health'],
   summary: 'Health check',
   description: 'Check the health of the service and its dependencies',
   responses: {

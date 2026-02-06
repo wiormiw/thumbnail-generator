@@ -17,7 +17,7 @@ const thumbnailsRoutes = new OpenAPIHono<HonoEnv>();
 const createThumbnailRoute = createRoute({
   method: 'post',
   path: '/',
-  tags: ['thumbnails'],
+  tags: ['Thumbnails'],
   summary: 'Generate a thumbnail',
   description: 'Create a new thumbnail generation job from an image URL',
   request: {

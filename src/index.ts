@@ -20,6 +20,7 @@ import {
   errorHandler,
   corsMiddleware,
   requestLogger,
+  setupSwagger,
 } from '@/infrastructure/presentation/http/hono/middleware';
 import { routes } from '@/infrastructure/presentation/http/hono/routes';
 import type { HonoEnv } from '@/infrastructure/presentation/http/hono/types/context';
@@ -89,24 +90,11 @@ async function initializeApp() {
   // Request logging
   app.use('*', requestLogger(logger));
 
-  // Error handler
-  app.use('*', errorHandler());
+  // Setup OpenAPI documentation and Swagger UI (dev only, before error handler)
+  setupSwagger(app);
 
-  // OpenAPI documentation endpoint
-  app.doc('/doc', {
-    openapi: '3.1.0',
-    info: {
-      version: '1.0.0',
-      title: 'Thumbnail Generator API',
-      description: 'API for generating and managing thumbnails',
-    },
-    servers: [
-      {
-        url: `http://localhost:${env.PORT}`,
-        description: 'Development server',
-      },
-    ],
-  });
+  // Error handler (must come after swagger to avoid interfering with HTML responses)
+  app.use('*', errorHandler());
 
   // Routes
   app.route('/', routes);
@@ -135,7 +123,8 @@ async function gracefulShutdown(signal: string) {
 const { app, logger } = await initializeApp();
 
 logger.info(`Server running at http://localhost:${env.PORT}`);
-logger.info(`OpenAPI documentation available at http://localhost:${env.PORT}/doc`);
+logger.info(`Swagger UI available at http://localhost:${env.PORT}/docs`);
+logger.info(`OpenAPI JSON at http://localhost:${env.PORT}/docs-json`);
 
 process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
 process.on('SIGINT', () => gracefulShutdown('SIGINT'));

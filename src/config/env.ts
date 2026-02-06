@@ -9,6 +9,7 @@ const EnvSchema = z.object({
   NODE_ENV: z.enum(['development', 'production', 'test']),
   LOG_LEVEL: z.string().default('info'),
   PORT: z.coerce.number().default(3000),
+  API_BASE_URL: z.string().url().optional(),
 
   // Database configuration
   DATABASE_URL: z.string().url().default('postgres://user:password@localhost:5432/dbname'),

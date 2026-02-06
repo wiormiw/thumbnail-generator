@@ -34,6 +34,7 @@
     "typescript": "^5"
   },
   "dependencies": {
+    "@hono/swagger-ui": "^0.5.3",
     "@hono/zod-openapi": "^0.18.2",
     "@hono/zod-validator": "^0.4.3",
     "drizzle-orm": "^0.45.1",
