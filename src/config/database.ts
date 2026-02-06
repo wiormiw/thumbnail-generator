@@ -37,6 +37,7 @@ const initDatabaseClient = async () => {
   });
 
   try {
+    await sqlClient.connect();
     await drizzleDb.execute(sql`SELECT 1`);
     logger.info('Drizzle ORM initialized');
   } catch (error) {
@@ -48,9 +49,9 @@ const initDatabaseClient = async () => {
 const closeDatabaseClient = async () => {
   if (sqlClient) {
     await sqlClient.close();
-    sqlClient = null;
     drizzleDb = null;
-    logger.info('Database connection closed');
+    sqlClient = null;
+    logger.info('Database connection pool closed');
   }
 };
 

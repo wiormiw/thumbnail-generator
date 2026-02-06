@@ -55,7 +55,7 @@ function getProductionConfig(): LoggerOptions {
 
 function getLogger(): Logger {
   if (!logger) {
-    return initLogger(); // Auto-initialize if not yet initialized
+    return initLogger();
   }
   return logger;
 }
@@ -76,9 +76,13 @@ function initLogger(options?: LoggerOptions): Logger {
   return logger;
 }
 
-function closeLogger(): void {
+async function closeLogger(): Promise<void> {
   if (logger) {
-    logger.info('Logger shutdown');
+    const currentLogger = logger;
+    await new Promise<void>((resolve) => {
+      currentLogger.flush(() => resolve());
+    });
+    currentLogger.info('Logger shutdown');
     logger = null;
   }
 }
