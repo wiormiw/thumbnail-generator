@@ -11,7 +11,7 @@ import {
   type Thumbnail as DrizzleThumbnail,
   type NewThumbnail as DrizzleNewThumbnail,
 } from '@/infrastructure/adapters/database/drizzle/postgres/schemas';
-import { eq, and, isNull, desc } from 'drizzle-orm';
+import { eq, and, isNull, desc, count } from 'drizzle-orm';
 
 class ThumbnailDrizzleRepository implements IThumbnailsRepository {
   readonly name = 'ThumbnailDrizzleRepository';
@@ -86,21 +86,46 @@ class ThumbnailDrizzleRepository implements IThumbnailsRepository {
     );
   }
 
-  async findAll(tx?: DbOrTx): Promise<Result<Thumbnail[], BaseError>> {
+  async findAll(
+    tx?: DbOrTx,
+    page: number = 1,
+    pageSize: number = 50
+  ): Promise<Result<Thumbnail[], BaseError>> {
     const db = tx ?? this.db();
 
     return fromPromise(
       async () => {
+        const offset = (page - 1) * pageSize;
         const results = await db
           .select()
           .from(thumbnails)
           .where(isNull(thumbnails.deletedAt))
-          .orderBy(desc(thumbnails.createdAt));
-        return results.map((r) => this.toDomain(r));
+          .orderBy(desc(thumbnails.createdAt))
+          .limit(pageSize)
+          .offset(offset);
+        return this.toDomainList(results);
       },
       (error) => {
-        this.logger.error({ error }, 'Failed to list thumbnails');
+        this.logger.error({ error, page, pageSize }, 'Failed to list thumbnails');
         return new DatabaseError('Failed to list thumbnails', { error });
+      }
+    );
+  }
+
+  async count(tx?: DbOrTx): Promise<Result<number, BaseError>> {
+    const db = tx ?? this.db();
+
+    return fromPromise(
+      async () => {
+        const result = await db
+          .select({ value: count() })
+          .from(thumbnails)
+          .where(isNull(thumbnails.deletedAt));
+        return result[0]?.value ?? 0;
+      },
+      (error) => {
+        this.logger.error({ error }, 'Failed to count thumbnails');
+        return new DatabaseError('Failed to count thumbnails', { error });
       }
     );
   }
@@ -118,7 +143,7 @@ class ThumbnailDrizzleRepository implements IThumbnailsRepository {
           .from(thumbnails)
           .where(and(eq(thumbnails.status, status), isNull(thumbnails.deletedAt)))
           .orderBy(desc(thumbnails.createdAt));
-        return results.map((r) => this.toDomain(r));
+        return this.toDomainList(results);
       },
       (error) => {
         this.logger.error({ status, error }, 'Failed to find thumbnails by status');
@@ -213,7 +238,6 @@ class ThumbnailDrizzleRepository implements IThumbnailsRepository {
     );
   }
 
-  /** Map Drizzle model to domain entity */
   private toDomain(model: DrizzleThumbnail): Thumbnail {
     return {
       id: model.id,
@@ -231,6 +255,25 @@ class ThumbnailDrizzleRepository implements IThumbnailsRepository {
       updatedAt: model.updatedAt,
       deletedAt: model.deletedAt,
     };
+  }
+
+  private toDomainList(models: DrizzleThumbnail[]): Thumbnail[] {
+    return models.map((model) => ({
+      id: model.id,
+      url: model.url,
+      originalPath: model.originalPath,
+      thumbnailPath: model.thumbnailPath,
+      width: model.width,
+      height: model.height,
+      format: model.format as Thumbnail['format'],
+      status: model.status as ThumbnailStatus,
+      errorMessage: model.errorMessage,
+      jobId: model.jobId,
+      retryCount: model.retryCount,
+      createdAt: model.createdAt,
+      updatedAt: model.updatedAt,
+      deletedAt: model.deletedAt,
+    }));
   }
 }
 

@@ -1,7 +1,7 @@
 import type { Result } from '@/core/shared/result';
 import type { BaseError } from '@/core/shared/errors';
 import type { ILogger, IStorageClient, IStorageRepository } from '@/core/ports';
-import { err, fromPromise } from '@/core/shared/result';
+import { fromPromise } from '@/core/shared/result';
 import { StorageError } from '@/core/shared/errors';
 
 class MinioRepository implements IStorageRepository {
@@ -32,22 +32,6 @@ class MinioRepository implements IStorageRepository {
   }
 
   async download(key: string): Promise<Result<Uint8Array, BaseError>> {
-    const existsResult = await fromPromise<boolean, BaseError>(
-      async () => this.storage.file(key).exists(),
-      (error) => {
-        this.logger.error({ key, error }, 'Failed to check file existence');
-        return new StorageError('Failed to check file existence', { key, error });
-      }
-    );
-
-    if (existsResult.isErr()) {
-      return err(existsResult.error);
-    }
-
-    if (!existsResult.value) {
-      return err(new StorageError(`File not found: ${key}`));
-    }
-
     return fromPromise(
       async () => new Uint8Array(await this.storage.file(key).arrayBuffer()),
       (error) => {
@@ -87,19 +71,11 @@ class MinioRepository implements IStorageRepository {
         const response = await this.storage.list(listOptions);
 
         const contents = response.contents;
-        const keys =
-          contents !== undefined && contents !== null ? new Array<string>(contents.length) : [];
-
-        if (contents !== undefined && contents !== null) {
-          for (let i = 0; i < contents.length; i++) {
-            const item = contents[i];
-            if (item) {
-              keys[i] = item.key;
-            }
-          }
+        if (!contents || contents.length === 0) {
+          return [];
         }
 
-        return keys;
+        return contents.filter((item) => item != null).map((item) => item.key);
       },
       (error) => {
         this.logger.error({ prefix, error }, 'Failed to list files');

@@ -23,6 +23,7 @@ const thumbnails = pgTable(
   },
   (table) => [
     index('thumbnails_status_idx').on(table.status),
+    index('thumbnails_status_deleted_at_idx').on(table.status, table.deletedAt),
     index('thumbnails_job_id_idx').on(table.jobId),
     index('thumbnails_created_at_idx').on(table.createdAt),
   ]
