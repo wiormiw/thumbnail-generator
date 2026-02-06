@@ -1,8 +1,14 @@
 import { ok, err, fromTry, type Result } from '@/core/shared/result';
 import { ValidationError, NotFoundError, BaseError } from '@/core/shared/errors';
 import type { ILogger } from '@/core/ports';
-import type { IThumbnailsRepository } from '@/core/ports';
-import type { CreateThumbnailRequest, ThumbnailResponse, IThumbnailsUseCase } from './dto';
+import type { IThumbnailsRepository, ICacheRepository } from '@/core/ports';
+import type {
+  CreateThumbnailRequest,
+  ThumbnailResponse,
+  ThumbnailListResponse,
+  DeleteResponse,
+  IThumbnailsUseCase,
+} from './dto';
 import type { Thumbnail } from '@/core/types';
 
 class ThumbnailsUseCase implements IThumbnailsUseCase {
@@ -10,7 +16,8 @@ class ThumbnailsUseCase implements IThumbnailsUseCase {
 
   constructor(
     private readonly logger: ILogger,
-    private readonly thumbnailsRepo: IThumbnailsRepository
+    private readonly thumbnailsRepo: IThumbnailsRepository,
+    private readonly cacheRepo: ICacheRepository
   ) {}
 
   async generateThumbnail(input: CreateThumbnailRequest): Promise<Result<ThumbnailResponse>> {
@@ -29,7 +36,7 @@ class ThumbnailsUseCase implements IThumbnailsUseCase {
     });
 
     if (createResult.isErr()) {
-      return createResult;
+      return err(createResult.error);
     }
 
     this.logger.info(
@@ -47,6 +54,16 @@ class ThumbnailsUseCase implements IThumbnailsUseCase {
       return err(new ValidationError('Invalid thumbnail ID'));
     }
 
+    // Try cache first
+    const cacheKey = `thumbnail:${id}`;
+    const cachedResult = await this.cacheRepo.get<ThumbnailResponse>(cacheKey);
+
+    if (cachedResult.isOk() && cachedResult.value !== null) {
+      this.logger.debug({ id }, 'Thumbnail found in cache');
+      return ok(cachedResult.value);
+    }
+
+    // Cache miss - fetch from database
     const result = await this.thumbnailsRepo.findById(id);
 
     if (result.isErr()) {
@@ -57,22 +74,52 @@ class ThumbnailsUseCase implements IThumbnailsUseCase {
       return err(new NotFoundError(`Thumbnail not found: ${id}`));
     }
 
-    return ok(this.toResponse(result.value));
+    const response = this.toResponse(result.value);
+
+    // Store in cache for 5 minutes (300 seconds)
+    await this.cacheRepo.set(cacheKey, response, 300);
+
+    return ok(response);
   }
 
-  async listThumbnails(): Promise<Result<ThumbnailResponse[]>> {
-    this.logger.info('Listing thumbnails');
+  async listThumbnails(
+    page: number = 1,
+    pageSize: number = 50
+  ): Promise<Result<ThumbnailListResponse>> {
+    this.logger.info({ page, pageSize }, 'Listing thumbnails');
 
-    const result = await this.thumbnailsRepo.findAll();
-
-    if (result.isErr()) {
-      return result;
+    // Validate pagination parameters
+    if (page < 1) {
+      return err(new ValidationError('Page must be greater than 0'));
+    }
+    if (pageSize < 1 || pageSize > 100) {
+      return err(new ValidationError('Page size must be between 1 and 100'));
     }
 
-    return ok(result.value.map((thumbnail) => this.toResponse(thumbnail)));
+    // Get paginated data and total count in parallel
+    const [thumbnailsResult, countResult] = await Promise.all([
+      this.thumbnailsRepo.findAll(undefined, page, pageSize),
+      this.thumbnailsRepo.count(),
+    ]);
+
+    if (thumbnailsResult.isErr()) {
+      return err(thumbnailsResult.error);
+    }
+
+    if (countResult.isErr()) {
+      return err(countResult.error);
+    }
+
+    const items = this.toResponseList(thumbnailsResult.value);
+    return ok({
+      items,
+      total: countResult.value,
+      page,
+      pageSize,
+    });
   }
 
-  async deleteThumbnail(id: string): Promise<Result<void>> {
+  async deleteThumbnail(id: string): Promise<Result<DeleteResponse>> {
     this.logger.info({ id }, 'Deleting thumbnail');
 
     if (!id || id.length === 0) {
@@ -88,7 +135,7 @@ class ThumbnailsUseCase implements IThumbnailsUseCase {
       return err(new NotFoundError(`Thumbnail not found: ${id}`));
     }
 
-    return ok(undefined);
+    return ok({ message: 'Thumbnail deleted successfully' });
   }
 
   private validateInput(input: CreateThumbnailRequest): Result<void> {
@@ -120,14 +167,36 @@ class ThumbnailsUseCase implements IThumbnailsUseCase {
     return {
       id: thumbnail.id,
       url: thumbnail.url,
+      originalPath: thumbnail.originalPath,
+      thumbnailPath: thumbnail.thumbnailPath,
       width: thumbnail.width,
       height: thumbnail.height,
       format: thumbnail.format,
       status: thumbnail.status,
-      thumbnailPath: thumbnail.thumbnailPath ?? null,
-      createdAt: thumbnail.createdAt,
-      updatedAt: thumbnail.updatedAt,
+      errorMessage: thumbnail.errorMessage,
+      jobId: thumbnail.jobId,
+      retryCount: thumbnail.retryCount,
+      createdAt: thumbnail.createdAt.toISOString(),
+      updatedAt: thumbnail.updatedAt.toISOString(),
     };
+  }
+
+  private toResponseList(thumbnails: Thumbnail[]): ThumbnailResponse[] {
+    return thumbnails.map((thumbnail) => ({
+      id: thumbnail.id,
+      url: thumbnail.url,
+      originalPath: thumbnail.originalPath,
+      thumbnailPath: thumbnail.thumbnailPath,
+      width: thumbnail.width,
+      height: thumbnail.height,
+      format: thumbnail.format,
+      status: thumbnail.status,
+      errorMessage: thumbnail.errorMessage,
+      jobId: thumbnail.jobId,
+      retryCount: thumbnail.retryCount,
+      createdAt: thumbnail.createdAt.toISOString(),
+      updatedAt: thumbnail.updatedAt.toISOString(),
+    }));
   }
 }
 
