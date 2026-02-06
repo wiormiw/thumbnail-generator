@@ -1,7 +1,7 @@
 import { Elysia } from 'elysia';
 import { ThumbnailCreateSchema, ThumbnailParamsSchema, type ThumbnailParamsType } from '../schema';
 import { NotFoundError } from '@/core/shared/errors';
-import { resultHandlerPlugin } from '../plugins/result-handler.plugin';
+import { resultHandlerPlugin } from '../plugins/resultHandler.plugin';
 import type { AppContext } from '../types/context';
 
 const thumbnailsRoutes = new Elysia({ name: 'routes:thumbnails' })
