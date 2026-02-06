@@ -14,31 +14,37 @@ import {
   getCacheClient,
   getDatabaseClient,
 } from './config';
-import { errorHandlerPlugin } from '@/infrastructure/presentation/http/elysia/plugins/error-handler.plugin';
-import { requestIdPlugin } from '@/infrastructure/presentation/http/elysia/plugins/request-id.plugin';
+import { errorHandlerPlugin } from '@/infrastructure/presentation/http/elysia/plugins/errorHandler.plugin';
+import { requestIdPlugin } from '@/infrastructure/presentation/http/elysia/plugins/requestId.plugin';
 import { routes } from '@/infrastructure/presentation/http/elysia/routes';
-import { ThumbnailsUseCase } from '@/application/thumbnails';
-import { MinioRepository } from '@/infrastructure/repositories/minio/minio.repository';
-import { RedisRepository } from '@/infrastructure/repositories/redis/redis.repository';
-import { ThumbnailsRepository } from '@/infrastructure/repositories/postgres/thumbnails.repository';
-import { TransactionManager } from '@/infrastructure/persistence/database/drizzle/transaction-manager';
+import { ThumbnailsUseCase, type IThumbnailsUseCase } from '@/application/thumbnails';
+import { MinioRepository } from '@/infrastructure/adapters/storage/repositories/minio.repository';
+import { RedisRepository } from '@/infrastructure/adapters/cache/repositories/redis.repository';
+import { ThumbnailDrizzleRepository } from '@/infrastructure/adapters/database/drizzle/repositories/thumbnail.drizzle.repository';
+import { TransactionManager } from '@/infrastructure/adapters/database/drizzle/transaction-manager';
+import type {
+  IThumbnailsRepository,
+  IStorageRepository,
+  ICacheRepository,
+  ITransactionManager,
+} from '@/core/ports';
 
 interface DIContainer {
-  getThumbnailsUseCase(): ThumbnailsUseCase;
-  getMinioRepository(): MinioRepository;
-  getRedisRepository(): RedisRepository;
-  getThumbnailsRepository(): ThumbnailsRepository;
-  getTransactionManager(): TransactionManager;
+  getThumbnailsUseCase(): IThumbnailsUseCase;
+  getStorageRepository(): IStorageRepository;
+  getCacheRepository(): ICacheRepository;
+  getThumbnailsRepository(): IThumbnailsRepository;
+  getTransactionManager(): ITransactionManager;
 }
 
 class DIContainerImpl implements DIContainer {
-  private thumbnailsUseCase: ThumbnailsUseCase | null = null;
-  private minioRepository: MinioRepository | null = null;
-  private redisRepository: RedisRepository | null = null;
-  private thumbnailsRepository: ThumbnailsRepository | null = null;
-  private transactionManager: TransactionManager | null = null;
+  private thumbnailsUseCase: IThumbnailsUseCase | null = null;
+  private storageRepository: IStorageRepository | null = null;
+  private cacheRepository: ICacheRepository | null = null;
+  private thumbnailsRepository: IThumbnailsRepository | null = null;
+  private transactionManager: ITransactionManager | null = null;
 
-  getThumbnailsUseCase(): ThumbnailsUseCase {
+  getThumbnailsUseCase(): IThumbnailsUseCase {
     if (!this.thumbnailsUseCase) {
       const logger = getLogger().child({ component: 'ThumbnailsUseCase' });
       this.thumbnailsUseCase = new ThumbnailsUseCase(logger, this.getThumbnailsRepository());
@@ -46,31 +52,31 @@ class DIContainerImpl implements DIContainer {
     return this.thumbnailsUseCase;
   }
 
-  getMinioRepository(): MinioRepository {
-    if (!this.minioRepository) {
-      const logger = getLogger().child({ component: 'MinioRepository' });
-      this.minioRepository = new MinioRepository(getStorageClient(), logger);
+  getStorageRepository(): IStorageRepository {
+    if (!this.storageRepository) {
+      const logger = getLogger().child({ component: 'StorageRepository' });
+      this.storageRepository = new MinioRepository(getStorageClient(), logger);
     }
-    return this.minioRepository;
+    return this.storageRepository;
   }
 
-  getRedisRepository(): RedisRepository {
-    if (!this.redisRepository) {
-      const logger = getLogger().child({ component: 'RedisRepository' });
-      this.redisRepository = new RedisRepository(getCacheClient(), logger);
+  getCacheRepository(): ICacheRepository {
+    if (!this.cacheRepository) {
+      const logger = getLogger().child({ component: 'CacheRepository' });
+      this.cacheRepository = new RedisRepository(getCacheClient(), logger);
     }
-    return this.redisRepository;
+    return this.cacheRepository;
   }
 
-  getThumbnailsRepository(): ThumbnailsRepository {
+  getThumbnailsRepository(): IThumbnailsRepository {
     if (!this.thumbnailsRepository) {
-      const logger = getLogger().child({ component: 'ThumbnailsRepository' });
-      this.thumbnailsRepository = new ThumbnailsRepository(getDatabaseClient, logger);
+      const logger = getLogger().child({ component: 'ThumbnailRepository' });
+      this.thumbnailsRepository = new ThumbnailDrizzleRepository(getDatabaseClient, logger);
     }
     return this.thumbnailsRepository;
   }
 
-  getTransactionManager(): TransactionManager {
+  getTransactionManager(): ITransactionManager {
     if (!this.transactionManager) {
       const logger = getLogger().child({ component: 'TransactionManager' });
       this.transactionManager = new TransactionManager(getDatabaseClient, logger);
