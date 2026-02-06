@@ -1,10 +1,9 @@
 import type { Result } from '../shared/result';
 import type { BaseError } from '../shared/errors';
-import type { DbOrTx, ThumbnailStatus } from '../types';
-import type {
-  Thumbnail,
-  NewThumbnail,
-} from '@/infrastructure/persistence/database/drizzle/postgres/schemas';
+import type { DbOrTx } from '@/infrastructure/adapters/database/types';
+import type { ThumbnailStatus } from '../types';
+import type { Thumbnail, NewThumbnail, ThumbnailStatusUpdate } from '../domain';
+
 type TransactionResult<T> = Result<T, BaseError>;
 
 interface ITransactionManager {
@@ -44,7 +43,7 @@ interface IThumbnailsRepository {
   updateStatus(
     id: string,
     status: ThumbnailStatus,
-    updates?: Partial<Pick<Thumbnail, 'thumbnailPath' | 'errorMessage' | 'retryCount'>>,
+    updates?: ThumbnailStatusUpdate,
     db?: DbOrTx
   ): Promise<Result<Thumbnail, BaseError>>;
   delete(id: string, db?: DbOrTx): Promise<Result<void, BaseError>>;
