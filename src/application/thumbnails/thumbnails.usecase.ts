@@ -3,7 +3,7 @@ import { ValidationError, NotFoundError, BaseError } from '@/core/shared/errors'
 import type { ILogger } from '@/core/ports';
 import type { IThumbnailsRepository } from '@/core/ports';
 import type { CreateThumbnailRequest, ThumbnailResponse, IThumbnailsUseCase } from './dto';
-import type { ThumbnailStatus } from '@/core/types';
+import type { Thumbnail } from '@/core/types';
 
 class ThumbnailsUseCase implements IThumbnailsUseCase {
   readonly name = 'ThumbnailsUseCase';
@@ -26,7 +26,6 @@ class ThumbnailsUseCase implements IThumbnailsUseCase {
       width: input.width ?? null,
       height: input.height ?? null,
       format: input.format ?? null,
-      status: 'pending',
     });
 
     if (createResult.isErr()) {
@@ -117,17 +116,7 @@ class ThumbnailsUseCase implements IThumbnailsUseCase {
     return ok(undefined);
   }
 
-  private toResponse(thumbnail: {
-    id: string;
-    url: string;
-    width: number | null;
-    height: number | null;
-    format: string | null;
-    status: ThumbnailStatus;
-    thumbnailPath: string | null;
-    createdAt: Date;
-    updatedAt: Date;
-  }): ThumbnailResponse {
+  private toResponse(thumbnail: Thumbnail): ThumbnailResponse {
     return {
       id: thumbnail.id,
       url: thumbnail.url,
