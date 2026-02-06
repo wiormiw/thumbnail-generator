@@ -4,7 +4,7 @@
   "type": "module",
   "private": true,
   "scripts": {
-    "dev": "bun --hot --env-file=.env src/index.ts",
+    "dev": "bun --watch --env-file=.env src/index.ts",
     "start": "bun --env-file=.env src/index.ts",
     "build": "bun build src/index.ts --outdir ./dist --target bun",
     "build:minify": "bun build src/index.ts --outfile ./dist/index.js --target bun --minify",
@@ -34,10 +34,11 @@
     "typescript": "^5"
   },
   "dependencies": {
-    "@elysiajs/jwt": "^1.4.0",
+    "@hono/zod-openapi": "^0.18.2",
+    "@hono/zod-validator": "^0.4.3",
     "drizzle-orm": "^0.45.1",
-    "elysia": "^1.4.22",
+    "hono": "^4.6.16",
     "pino": "^10.3.0",
-    "zod": "^4.3.6"
+    "zod": "^3.24.1"
   }
 }
